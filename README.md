@@ -4,8 +4,9 @@ Teens put their phones down together and play conversation games in real time.
 
 1. **Lock together** – one person starts a huddle, friends join nearby (no internet needed,
    uses MultipeerConnectivity). The host picks a time; every phone shows a shared countdown.
-   Leaving the app counts as a "peek" and everyone sees it. Optionally blocks the teen's chosen
-   apps with Apple's Screen Time API.
+   With **Lock all my other apps** on, Apple's Screen Time API blocks every other app and website
+   on that phone until the timer ends (calls and emergency stay available), while Huddle stays open
+   for the games. Leaving Huddle still counts as a "peek" and everyone sees it.
 2. **Games** (all synced live, designed so people look up and talk, not at the screen):
    Imposter, Most Likely To, Never Have I Ever, Would You Rather, Act It Out, Two Truths & a Lie,
    Hot Seat. Points and a leaderboard for Imposter and Two Truths.
@@ -21,9 +22,12 @@ Set your team in `project.yml` first. No XcodeGen? Make a new iOS App project (S
 drag in `Sources/`, and copy the Info.plist keys from `project.yml`.
 
 ## Honest limits
-- iOS apps cannot truly lock the whole phone. The hard block uses FamilyControls, which needs
-  Apple's approval of the Family Controls entitlement. Without it, delete the entitlement and
-  Huddle works as a social-pressure lock.
+- The full lock uses Apple's Screen Time API (FamilyControls). It only runs on real devices and needs
+  the Family Controls entitlement: development builds work with your own team, but App Store release
+  needs Apple's approval. The lock is lifted by a background extension (HuddleMonitor) at the end time
+  even if Huddle was closed, and also blocks deleting apps and changing the clock while locked.
+  Phone calls and emergency features can never be blocked by iOS.
+- Without the entitlement, delete it from `project.yml` and Huddle falls back to a social-pressure lock.
 - Two Truths' answer is in the synced state, so a determined hacker could peek. Fine for friends.
 - Untested: written without access to Xcode, so expect a few small compile fixes. Work through [TESTING.md](TESTING.md) on real phones.
 - App Store: this is a kids' app, so plan for the Kids/Family guidelines and COPPA. Huddle collects

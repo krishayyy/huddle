@@ -1,14 +1,10 @@
 import SwiftUI
-#if canImport(FamilyControls)
-import FamilyControls
-#endif
 
 /// The lobby: who's here, start a lock together, or just play a game.
 struct RoomView: View {
     @EnvironmentObject var store: RoomStore
     @EnvironmentObject var shield: ShieldController
     @State private var minutes = 30
-    @State private var pickingApps = false
     @State private var confirmLeave = false
 
     private let options = [15, 30, 45, 60, 90]
@@ -87,18 +83,26 @@ struct RoomView: View {
                 Text("The host picks the time. You'll all lock at once.")
                     .foregroundStyle(.secondary)
             }
-            #if canImport(FamilyControls)
             Divider().overlay(.white.opacity(0.2))
-            Button {
-                Task {
-                    if !shield.authorized { await shield.requestAccess() }
-                    pickingApps = shield.authorized
+            Toggle(isOn: Binding(
+                get: { shield.wantsFullLock },
+                set: { on in
+                    if on {
+                        Task {
+                            await shield.requestAccess()           // system Screen Time prompt
+                            shield.wantsFullLock = shield.authorized
+                        }
+                    } else {
+                        shield.wantsFullLock = false
+                    }
+                })) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Lock all my other apps").fontWeight(.semibold)
+                    Text("Every other app and site is blocked until the timer ends. Calls and emergency stay on. Huddle stays open for games.")
+                        .font(.footnote).foregroundStyle(.secondary)
                 }
-            } label: {
-                Label("Also block my distracting apps", systemImage: "shield.lefthalf.filled")
             }
-            .familyActivityPicker(isPresented: $pickingApps, selection: $shield.selection)
-            #endif
+            .tint(Theme.violet)
             if !store.state.feed.isEmpty {
                 Divider().overlay(.white.opacity(0.2))
                 ForEach(store.state.feed.suffix(3), id: \.self) { Text($0).font(.footnote).foregroundStyle(.secondary) }

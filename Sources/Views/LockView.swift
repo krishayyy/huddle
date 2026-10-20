@@ -46,6 +46,14 @@ struct LockView: View {
 
                 scoreboard
 
+                if !shield.engaged {
+                    Text("Other apps aren't blocked on this phone. Turn on \"Lock all my other apps\" in the lobby next time.")
+                        .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                } else {
+                    Label("Everything else on your phone is locked", systemImage: "lock.fill")
+                        .font(.footnote.weight(.semibold)).foregroundStyle(Theme.lime)
+                }
+
                 Spacer()
                 Button("Play a game 🎲") { showGames = true }
                     .buttonStyle(PrimaryButton())
@@ -114,7 +122,7 @@ struct LockView: View {
         // Buzz when a friend peeks so the group feels it.
         .sensoryFeedback(.warning, trigger: store.state.members.map(\.bails))
         .onAppear {
-            shield.engage()
+            if let end = store.state.lock?.endsAt { shield.engage(until: end) }
             UIApplication.shared.isIdleTimerDisabled = true   // keep the screen awake on the table
         }
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }

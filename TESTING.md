@@ -15,7 +15,7 @@ Needs 3 iPhones (2 for most things, 3 for Imposter). Tick each after you've trie
 - [ ] Member chips update live as B and C join/leave
 - [ ] Minutes picker (host only) changes the label on **Lock in**
 - [ ] **Lock in** disabled with 1 person; enabled with 2+; all phones jump to the lock screen
-- [ ] **Also block my distracting apps** (needs Family Controls entitlement) → permission, picker opens
+- [ ] **Lock all my other apps** toggle → Screen Time permission appears; toggle stays on only if you allow it
 - [ ] **Leave huddle** → asks first; **Stay** keeps you, **Leave/End huddle** exits (host leaving drops guests to Home)
 
 ## Lock screen
@@ -26,6 +26,15 @@ Needs 3 iPhones (2 for most things, 3 for Imposter). Tick each after you've trie
 - [ ] Return B to the app → still on lock screen, bail count kept (banner "Reconnecting…" may flash)
 - [ ] **End for everyone** (host only) → asks first; everyone returns to lobby
 - [ ] Let the timer hit 0 → everyone returns to lobby, confetti if you never peeked; Home stats go up
+
+## Full lock (real devices, entitlement required)
+- [ ] With the toggle on, start a lock → lock screen says "Everything else on your phone is locked"
+- [ ] Press Home → tapping any other app shows the "Locked with friends" screen
+- [ ] Phone calls still work; Huddle still opens and games still sync
+- [ ] Try deleting an app and changing the date/time → both blocked
+- [ ] Force-quit Huddle mid-lock → apps stay locked, then unlock by themselves at the end time
+- [ ] **I need my phone** and **End for everyone** both unlock immediately
+- [ ] Toggle off (or deny the permission) → lock screen warns other apps aren't blocked
 
 ## Games (try each on 2+ phones; Imposter on 3+)
 - [ ] Each tile starts its game on every phone; Imposter tile dimmed with "Needs 3+ people" with 2 people
