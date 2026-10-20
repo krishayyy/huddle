@@ -1,4 +1,4 @@
-import Foundation
+import SwiftUI
 
 // MARK: - Shared room state (host-authoritative, synced to everyone)
 
@@ -39,6 +39,9 @@ enum GameKind: String, Codable, CaseIterable, Identifiable {
     }
     var emoji: String {
         switch self { case .wouldYouRather: "⚖️"; case .hotSeat: "🔥"; case .twoTruths: "🕵️" }
+    }
+    var color: Color {
+        switch self { case .wouldYouRather: Theme.cyan; case .hotSeat: Theme.orange; case .twoTruths: Theme.lime }
     }
     var blurb: String {
         switch self {

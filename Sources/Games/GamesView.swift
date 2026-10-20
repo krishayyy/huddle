@@ -16,21 +16,21 @@ struct GamesView: View {
                 HStack {
                     Button("Next ➜") { store.send(.next) }.buttonStyle(PrimaryButton())
                     Button("End game") { store.send(.stopGame) }
-                        .buttonStyle(PrimaryButton(tint: .white.opacity(0.85)))
+                        .buttonStyle(PrimaryButton.light)
                 }
             } else {
                 ForEach(GameKind.allCases) { kind in
                     Button { store.send(.startGame(kind)) } label: {
                         HStack(spacing: 14) {
-                            Text(kind.emoji).font(.largeTitle)
+                            Text(kind.emoji).font(.system(size: 44))
                             VStack(alignment: .leading) {
-                                Text(kind.title).font(.headline)
+                                Text(kind.title).font(.system(.title3, design: .rounded, weight: .heavy))
                                 Text(kind.blurb).font(.footnote).foregroundStyle(.secondary)
                                     .multilineTextAlignment(.leading)
                             }
                             Spacer()
                         }
-                        .card()
+                        .card(tint: kind.color)
                     }
                     .buttonStyle(.plain)
                     .disabled(store.state.members.count < 2)
@@ -70,11 +70,11 @@ private struct WYRView: View {
                     Text(voters.isEmpty ? "Nobody 😬" : voters.joined(separator: ", "))
                         .font(.footnote).foregroundStyle(.secondary)
                 } else if mine {
-                    Text("Your pick ✓").font(.footnote).foregroundStyle(Theme.accent)
+                    Text("Your pick ✓").font(.footnote.bold())
                 }
             }
-            .card()
-            .overlay(RoundedRectangle(cornerRadius: 20).stroke(mine ? Theme.accent : .clear, lineWidth: 2))
+            .card(tint: i == 0 ? Theme.cyan : Theme.pink)
+            .overlay(RoundedRectangle(cornerRadius: 22).stroke(mine ? .white : .clear, lineWidth: 4))
         }
         .buttonStyle(.plain)
         .disabled(game.revealed)

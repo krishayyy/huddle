@@ -4,12 +4,14 @@ import SwiftUI
 struct HuddleApp: App {
     @StateObject private var store = RoomStore()
     @StateObject private var shield = ShieldController()
+    @StateObject private var stats = FocusStats()
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environmentObject(store)
                 .environmentObject(shield)
+                .environmentObject(stats)
                 .preferredColorScheme(.dark)
         }
     }
@@ -35,31 +37,63 @@ struct RootView: View {
 }
 
 enum Theme {
-    static let background = LinearGradient(
-        colors: [Color(red: 0.10, green: 0.07, blue: 0.22), Color(red: 0.03, green: 0.10, blue: 0.20)],
-        startPoint: .topLeading, endPoint: .bottomTrailing)
-    static let accent = Color(red: 1.0, green: 0.55, blue: 0.35)
-    static let card = Color.white.opacity(0.08)
-}
+    static let pink = Color(red: 1.0, green: 0.72, blue: 0.88)
+    static let orange = Color(red: 1.0, green: 0.80, blue: 0.70)
+    static let yellow = Color(red: 1.0, green: 0.95, blue: 0.76)
+    static let cyan = Color(red: 0.62, green: 0.86, blue: 1.0)
+    static let lime = Color(red: 0.66, green: 0.96, blue: 0.84)
+    static let violet = Color(red: 0.76, green: 0.68, blue: 1.0)
 
-struct PrimaryButton: ButtonStyle {
-    var tint: Color = Theme.accent
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.headline)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(tint, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .foregroundStyle(.black)
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(.spring(duration: 0.2), value: configuration.isPressed)
+    static let accent = pink
+    static let card = Color.white.opacity(0.10)
+    static let palette: [Color] = [pink, cyan, yellow, lime, violet, orange]
+
+    /// Stable color per person so everyone keeps their own color everywhere.
+    static func color(for id: String) -> Color {
+        palette[id.unicodeScalars.reduce(0) { ($0 + Int($1.value)) % 997 } % palette.count]
+    }
+
+    static var background: some View {
+        ZStack {
+            LinearGradient(colors: [Color(red: 0.05, green: 0.05, blue: 0.12), Color(red: 0.03, green: 0.04, blue: 0.09)],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+            Circle().fill(violet.opacity(0.35)).frame(width: 340).blur(radius: 110).offset(x: -140, y: -280)
+            Circle().fill(cyan.opacity(0.22)).frame(width: 320).blur(radius: 110).offset(x: 160, y: 320)
+            Circle().fill(pink.opacity(0.14)).frame(width: 240).blur(radius: 100).offset(x: 150, y: -80)
+        }
     }
 }
 
+struct PrimaryButton: ButtonStyle {
+    var tint: Color = Theme.violet
+    var secondary: Color = Theme.cyan
+    var textColor: Color = Color(red: 0.08, green: 0.07, blue: 0.16)
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(.headline, design: .rounded, weight: .semibold))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 15)
+            .background(
+                LinearGradient(colors: [tint, secondary], startPoint: .leading, endPoint: .trailing),
+                in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .foregroundStyle(textColor)
+            .shadow(color: tint.opacity(0.35), radius: 16, y: 4)   // soft glow
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.spring(duration: 0.18), value: configuration.isPressed)
+    }
+}
+
+extension PrimaryButton {
+    static var light: PrimaryButton { PrimaryButton(tint: .white.opacity(0.9), secondary: .white.opacity(0.7)) }
+}
+
 extension View {
-    func card() -> some View {
+    func card(tint: Color? = nil) -> some View {
         padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .background((tint ?? .white).opacity(tint == nil ? 0.06 : 0.12),
+                        in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke((tint ?? .white).opacity(tint == nil ? 0.12 : 0.35), lineWidth: 1))
     }
 }

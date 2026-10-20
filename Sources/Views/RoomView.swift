@@ -30,7 +30,7 @@ struct RoomView: View {
 
     private var header: some View {
         HStack {
-            Text("Your huddle").font(.system(size: 30, weight: .heavy, design: .rounded))
+            Text("Your huddle").font(.system(size: 34, weight: .bold, design: .rounded))
             Spacer()
             if store.state.lock != nil && !store.lockActive {
                 Text("🎉 Lock complete").font(.subheadline)
@@ -44,14 +44,16 @@ struct RoomView: View {
             FlowRow(items: store.state.members) { m in
                 Text(m.id == store.me ? "\(m.name) (you)" : m.name)
                     .padding(.horizontal, 12).padding(.vertical, 6)
-                    .background(Theme.accent.opacity(0.25), in: Capsule())
+                    .background(Theme.color(for: m.id).opacity(0.9), in: Capsule())
+                    .foregroundStyle(.black)
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
             }
             if store.isHost {
                 Text("Friends: open Huddle → Join friends nearby.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
         }
-        .card()
+        .card(tint: Theme.violet)
     }
 
     private var lockCard: some View {
@@ -93,7 +95,7 @@ struct RoomView: View {
                 ForEach(store.state.feed.suffix(3), id: \.self) { Text($0).font(.footnote).foregroundStyle(.secondary) }
             }
         }
-        .card()
+        .card(tint: Theme.pink)
     }
 }
 
