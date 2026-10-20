@@ -4,6 +4,10 @@ struct HomeView: View {
     @EnvironmentObject var store: RoomStore
     @EnvironmentObject var stats: FocusStats
     @AppStorage("displayName") private var name = ""
+    @State private var browsing = false
+    @FocusState private var nameFocused: Bool
+
+    private var nameOK: Bool { !name.trimmingCharacters(in: .whitespaces).isEmpty }
 
     private func stat(_ value: String, _ label: String, _ color: Color) -> some View {
         VStack(spacing: 2) {
@@ -14,11 +18,10 @@ struct HomeView: View {
         .padding(.vertical, 12)
         .background(Theme.card, in: RoundedRectangle(cornerRadius: 18))
     }
-    @State private var browsing = false
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(spacing: 22) {
                 VStack(spacing: 8) {
                     Text("🫂").font(.system(size: 64))
                     Text("Huddle")
@@ -27,7 +30,7 @@ struct HomeView: View {
                     Text("Put the phones down. Together.")
                         .foregroundStyle(.secondary)
                 }
-                .padding(.top, 40)
+                .padding(.top, 32)
 
                 HStack {
                     stat("\(stats.score)", "focus score", Theme.cyan)
@@ -36,51 +39,80 @@ struct HomeView: View {
                 }
 
                 TextField("Your name", text: $name)
+                    .focused($nameFocused)
+                    .submitLabel(.done)
+                    .onSubmit { nameFocused = false }
                     .textInputAutocapitalization(.words)
                     .autocorrectionDisabled()
                     .padding(14)
+                    .frame(minHeight: 52)
                     .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
                     .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.violet.opacity(0.5), lineWidth: 1))
 
-                Button("Start a huddle") { store.host(name: name) }
+                if !browsing {
+                    Button("Start a huddle") {
+                        nameFocused = false
+                        store.host(name: name)
+                    }
                     .buttonStyle(PrimaryButton())
-                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(!nameOK)
 
-                Button("Join friends nearby") {
-                    browsing = true
-                    store.findRooms(name: name)
+                    Button("Join friends nearby") {
+                        nameFocused = false
+                        browsing = true
+                        store.findRooms(name: name)
+                    }
+                    .buttonStyle(PrimaryButton(tint: Theme.cyan, secondary: Theme.violet))
+                    .disabled(!nameOK)
+
+                    if !nameOK {
+                        Text("Add your name so friends know who you are.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                } else {
+                    nearbyList
                 }
-                .buttonStyle(PrimaryButton(tint: Theme.cyan, secondary: Theme.violet))
-                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
-
-                if browsing { nearbyList }
             }
             .padding(24)
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private var nearbyList: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Nearby huddles").font(.headline)
                 if store.connecting || store.nearby.isEmpty { ProgressView().padding(.leading, 4) }
+                Spacer()
+                Button("Cancel") {
+                    browsing = false
+                    store.leave()          // stops browsing and resets
+                }
+                .font(.subheadline.weight(.semibold))
+                .frame(minHeight: 44)
             }
             if store.nearby.isEmpty {
-                Text("Looking… ask a friend to start a huddle.")
-                    .foregroundStyle(.secondary)
+                Text("Looking… ask a friend to tap Start a huddle. Make sure Bluetooth and Wi‑Fi are on, and allow Local Network access if asked.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+            if store.joinFailed {
+                Text("Couldn't join that huddle. Try again.")
+                    .font(.footnote.weight(.semibold)).foregroundStyle(Theme.pink)
             }
             ForEach(store.nearby) { room in
                 Button {
                     store.join(room)
                 } label: {
                     HStack {
-                        Text(room.name)
+                        Text(room.name).fontWeight(.semibold)
                         Spacer()
-                        Image(systemName: "arrow.right.circle.fill")
+                        if store.connecting { ProgressView() } else { Image(systemName: "arrow.right.circle.fill") }
                     }
-                    .card()
+                    .frame(minHeight: 44)
+                    .card(tint: Theme.violet)
                 }
                 .buttonStyle(.plain)
+                .disabled(store.connecting)
             }
         }
     }

@@ -9,6 +9,9 @@ struct LockView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var showGames = false
     @State private var breathe = false
+    @State private var confirmBail = false
+    @State private var confirmEnd = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -36,7 +39,9 @@ struct LockView: View {
                     }
                 }
                 .onAppear {
-                    withAnimation(.easeInOut(duration: 4).repeatForever(autoreverses: true)) { breathe = true }
+                    if !reduceMotion {
+                        withAnimation(.easeInOut(duration: 4).repeatForever(autoreverses: true)) { breathe = true }
+                    }
                 }
 
                 scoreboard
@@ -44,12 +49,14 @@ struct LockView: View {
                 Spacer()
                 Button("Play a game 🎲") { showGames = true }
                     .buttonStyle(PrimaryButton())
-                Button("I need my phone", role: .destructive) {
-                    store.send(.bail)
-                    store.leftLock = true
-                    shield.release()
+                HStack(spacing: 24) {
+                    Button("I need my phone", role: .destructive) { confirmBail = true }
+                    if store.isHost {
+                        Button("End for everyone", role: .destructive) { confirmEnd = true }
+                    }
                 }
                 .font(.footnote)
+                .frame(minHeight: 44)
             }
             .padding(24)
             .onChange(of: remaining <= 0) { _, done in
@@ -64,14 +71,48 @@ struct LockView: View {
             }
         }
         .sheet(isPresented: $showGames) {
-            ScrollView { GamesView().padding(20) }
-                .background(Theme.background)
-                .presentationDetents([.large])
+            NavigationStack {
+                ScrollView { GamesView().padding(20) }
+                    .scrollDismissesKeyboard(.interactively)
+                    .background(Theme.background.ignoresSafeArea())
+                    .navigationTitle("Play together")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) { Button("Done") { showGames = false } }
+                    }
+            }
+            .presentationDetents([.large])
+            .preferredColorScheme(.dark)
+        }
+        .confirmationDialog("Give up on the lock?", isPresented: $confirmBail, titleVisibility: .visible) {
+            Button("I need my phone", role: .destructive) {
+                store.send(.bail)       // your friends will see this
+                store.leftLock = true
+                shield.release()
+            }
+            Button("Keep going", role: .cancel) {}
+        } message: {
+            Text("Your friends will see that you peeked.")
+        }
+        .confirmationDialog("End the lock for everyone?", isPresented: $confirmEnd, titleVisibility: .visible) {
+            Button("End lock", role: .destructive) {
+                store.send(.endLock)
+                shield.release()
+            }
+            Button("Keep going", role: .cancel) {}
         }
         .onChange(of: scenePhase) { _, phase in
-            // Leaving the app mid-lock = a peek. Everyone sees it.
-            if phase == .background { store.send(.bail) }
+            // Leaving the app mid-lock = a peek. iOS only gives us a moment before it suspends
+            // the app, so ask for a short background task to get the message out.
+            if phase == .background && !store.leftLock {
+                var task = UIBackgroundTaskIdentifier.invalid
+                task = UIApplication.shared.beginBackgroundTask { UIApplication.shared.endBackgroundTask(task) }
+                store.send(.bail)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) { UIApplication.shared.endBackgroundTask(task) }
+            }
         }
+        // Buzz when a friend peeks so the group feels it.
+        .sensoryFeedback(.warning, trigger: store.state.members.map(\.bails))
         .onAppear {
             shield.engage()
             UIApplication.shared.isIdleTimerDisabled = true   // keep the screen awake on the table

@@ -9,6 +9,7 @@ struct RoomView: View {
     @EnvironmentObject var shield: ShieldController
     @State private var minutes = 30
     @State private var pickingApps = false
+    @State private var confirmLeave = false
 
     private let options = [15, 30, 45, 60, 90]
 
@@ -20,11 +21,19 @@ struct RoomView: View {
                 lockCard
                 Text("Play").font(.title3.bold())
                 GamesView()
-                Button("Leave huddle", role: .destructive) { store.leave() }
-                    .frame(maxWidth: .infinity)
+                Button("Leave huddle", role: .destructive) { confirmLeave = true }
+                    .frame(maxWidth: .infinity, minHeight: 44)
                     .padding(.top, 8)
             }
             .padding(20)
+        }
+        .overlay(alignment: .top) {
+            if store.state.lock != nil && !store.lockActive && store.myBails == 0 { Confetti() }
+        }
+        .confirmationDialog(store.isHost ? "End this huddle for everyone?" : "Leave this huddle?",
+                            isPresented: $confirmLeave, titleVisibility: .visible) {
+            Button(store.isHost ? "End huddle" : "Leave", role: .destructive) { store.leave() }
+            Button("Stay", role: .cancel) {}
         }
     }
 
@@ -33,7 +42,7 @@ struct RoomView: View {
             Text("Your huddle").font(.system(size: 34, weight: .bold, design: .rounded))
             Spacer()
             if store.state.lock != nil && !store.lockActive {
-                Text("🎉 Lock complete").font(.subheadline)
+                Text(store.myBails == 0 ? "🎉 Locked in the whole time" : "Lock complete").font(.subheadline)
             }
         }
     }
@@ -48,8 +57,9 @@ struct RoomView: View {
                     .foregroundStyle(.black)
                     .font(.system(.subheadline, design: .rounded, weight: .bold))
             }
-            if store.isHost {
-                Text("Friends: open Huddle → Join friends nearby.")
+            if store.state.members.count < 2 {
+                Text(store.isHost ? "Friends: open Huddle → Join friends nearby."
+                                  : "Waiting on the host…")
                     .font(.footnote).foregroundStyle(.secondary)
             }
         }
@@ -65,8 +75,7 @@ struct RoomView: View {
                 }
                 .pickerStyle(.segmented)
                 Button("Lock in for \(minutes) min") {
-                    shield.engage()
-                    store.send(.startLock(minutes: minutes))
+                    store.send(.startLock(minutes: minutes))   // LockView engages the app shield
                 }
                 .buttonStyle(PrimaryButton())
                 .disabled(store.state.members.count < 2)

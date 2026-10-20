@@ -6,7 +6,9 @@ Teens put their phones down together and play conversation games in real time.
    uses MultipeerConnectivity). The host picks a time; every phone shows a shared countdown.
    Leaving the app counts as a "peek" and everyone sees it. Optionally blocks the teen's chosen
    apps with Apple's Screen Time API.
-2. **Games** – Would You Rather, Hot Seat, Two Truths & a Lie, synced live across phones.
+2. **Games** (all synced live, designed so people look up and talk, not at the screen):
+   Imposter, Most Likely To, Never Have I Ever, Would You Rather, Act It Out, Two Truths & a Lie,
+   Hot Seat. Points and a leaderboard for Imposter and Two Truths.
 
 ## Build
 Requires a Mac with Xcode 15+ and two or more real iPhones (Multipeer doesn't work well in the simulator).
@@ -23,7 +25,7 @@ drag in `Sources/`, and copy the Info.plist keys from `project.yml`.
   Apple's approval of the Family Controls entitlement. Without it, delete the entitlement and
   Huddle works as a social-pressure lock.
 - Two Truths' answer is in the synced state, so a determined hacker could peek. Fine for friends.
-- Untested: written without access to Xcode, so expect a few small compile fixes.
+- Untested: written without access to Xcode, so expect a few small compile fixes. Work through [TESTING.md](TESTING.md) on real phones.
 - App Store: this is a kids' app, so plan for the Kids/Family guidelines and COPPA. Huddle collects
   no accounts or data and only talks device-to-device, which helps.
 
