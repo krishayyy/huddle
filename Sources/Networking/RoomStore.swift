@@ -26,6 +26,7 @@ final class RoomStore: ObservableObject {
     private var net: PeerSession?
     private var hostPeer: MCPeerID?
     private var used = Set<String>()         // prompts already shown this session (host only)
+    private var drop: DailyDrop?             // today's fresh content (host only)
 
     var isHost: Bool { role == .host }
     var lockActive: Bool { state.lock?.isActive == true }
@@ -58,6 +59,15 @@ final class RoomStore: ObservableObject {
         role = .host
         state = RoomState(members: [Member(id: me)])
         net?.advertise(roomName: "\(state.name(of: me))'s huddle")
+        // Pull today's theme + prompts in the background; games work immediately without it.
+        Task { [weak self] in
+            let d = await DailyContent.load()
+            guard let self, self.role == .host else { return }
+            self.drop = d
+            self.state.dailyTheme = d.label
+            self.state.featured = d.featured
+            self.broadcast()
+        }
     }
 
     func findRooms(name: String) {
@@ -96,6 +106,7 @@ final class RoomStore: ObservableObject {
         reconnecting = false
         joinFailed = false
         used = []
+        drop = nil
     }
 
     private func shutdown() {
@@ -249,10 +260,10 @@ final class RoomStore: ObservableObject {
         case .reroll:
             switch state.game {
             case .hotSeat(var g):
-                g.question = fresh(Prompts.hotSeat)
+                g.question = fresh(Prompts.hotSeat, daily: drop?.hotSeat ?? [])
                 state.game = .hotSeat(g)
             case .actItOut(var g) where g.phase == .ready:
-                g.word = fresh(Prompts.actWords)
+                g.word = fresh(Prompts.actWords, daily: drop?.actWords ?? [])
                 state.game = .actItOut(g)
             default: break
             }
@@ -280,7 +291,7 @@ final class RoomStore: ObservableObject {
             guard case .actItOut(var g) = state.game, g.actor == id, g.phase == .running,
                   let end = g.endsAt, Date() < end else { break }
             if case .gotIt = action { g.got += 1 } else { g.passed += 1 }
-            g.word = fresh(Prompts.actWords)
+            g.word = fresh(Prompts.actWords, daily: drop?.actWords ?? [])
             state.game = .actItOut(g)
 
         case .startVoting:
@@ -331,10 +342,16 @@ final class RoomStore: ObservableObject {
     }
 
     /// Random element that hasn't been shown yet this session (resets when the list runs out).
-    private func fresh(_ list: [String]) -> String {
-        var pool = list.filter { !used.contains($0) }
-        if pool.isEmpty { list.forEach { used.remove($0) }; pool = list }
-        let pick = pool.randomElement() ?? list[0]
+    /// Today's fresh prompts are favored when there are any left.
+    private func fresh(_ base: [String], daily: [String] = []) -> String {
+        let todays = daily.filter { !used.contains($0) }
+        if let p = todays.randomElement(), Int.random(in: 0..<10) < 6 {
+            used.insert(p)
+            return p
+        }
+        var pool = base.filter { !used.contains($0) }
+        if pool.isEmpty { base.forEach { used.remove($0) }; pool = base }
+        let pick = pool.randomElement() ?? todays.first ?? base.first ?? "Tell us something about you"
         used.insert(pick)
         return pick
     }
@@ -344,20 +361,21 @@ final class RoomStore: ObservableObject {
     private func newGame(_ kind: GameKind, seat: String) -> Game {
         switch kind {
         case .wouldYouRather:
-            let pairs = Prompts.wouldYouRather
-            let key = fresh(pairs.map { $0.0 })
+            let todays = (drop?.wouldYouRather ?? []).map { ($0[0], $0[1]) }
+            let pairs = todays + Prompts.wouldYouRather
+            let key = fresh(Prompts.wouldYouRather.map { $0.0 }, daily: todays.map { $0.0 })
             let p = pairs.first { $0.0 == key } ?? pairs[0]
             return .wyr(WYR(a: p.0, b: p.1, talk: talk()))
         case .mostLikely:
-            return .mostLikely(MostLikely(prompt: fresh(Prompts.mostLikely), talk: talk()))
+            return .mostLikely(MostLikely(prompt: fresh(Prompts.mostLikely, daily: drop?.mostLikely ?? []), talk: talk()))
         case .neverHave:
-            return .neverHave(NeverHave(prompt: fresh(Prompts.neverHave), talk: talk()))
+            return .neverHave(NeverHave(prompt: fresh(Prompts.neverHave, daily: drop?.neverHave ?? []), talk: talk()))
         case .hotSeat:
-            return .hotSeat(HotSeat(question: fresh(Prompts.hotSeat), seat: seat))
+            return .hotSeat(HotSeat(question: fresh(Prompts.hotSeat, daily: drop?.hotSeat ?? []), seat: seat))
         case .twoTruths:
             return .twoTruths(TwoTruths(author: seat))
         case .actItOut:
-            return .actItOut(ActItOut(actor: seat, word: fresh(Prompts.actWords)))
+            return .actItOut(ActItOut(actor: seat, word: fresh(Prompts.actWords, daily: drop?.actWords ?? [])))
         case .imposter:
             let (category, words) = Prompts.imposter.randomElement()!
             let ids = state.members.map(\.id)

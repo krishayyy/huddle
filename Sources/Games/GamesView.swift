@@ -38,7 +38,14 @@ struct GamesView: View {
                 Text("Games need at least 2 people. Waiting for friends…")
                     .font(.footnote).foregroundStyle(.secondary)
             }
-            ForEach(GameKind.allCases) { kind in
+            if let theme = store.state.dailyTheme {
+                Text("Today: \(theme)")
+                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            // Today's featured game goes first.
+            let ordered = GameKind.allCases.filter { $0 == store.state.featured } + GameKind.allCases.filter { $0 != store.state.featured }
+            ForEach(ordered) { kind in
                 let ok = store.state.members.count >= kind.minPlayers
                 Button { store.send(.startGame(kind)) } label: {
                     HStack(spacing: 14) {
@@ -50,6 +57,12 @@ struct GamesView: View {
                                 .multilineTextAlignment(.leading)
                         }
                         Spacer()
+                        if kind == store.state.featured {
+                            Text("TODAY").font(.caption2.weight(.bold))
+                                .padding(.horizontal, 8).padding(.vertical, 4)
+                                .background(Theme.yellow, in: Capsule())
+                                .foregroundStyle(.black)
+                        }
                     }
                     .frame(minHeight: 56)
                     .card(tint: kind.color)

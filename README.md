@@ -11,6 +11,13 @@ Teens put their phones down together and play conversation games in real time.
    Imposter, Most Likely To, Never Have I Ever, Would You Rather, Act It Out, Two Truths & a Lie,
    Hot Seat. Points and a leaderboard for Imposter and Two Truths.
 
+## Fresh every day
+The host's phone fetches `content/daily.json` once a day (data only, filtered for length and
+unsafe words). It sets a theme, pins a featured game with a TODAY badge, and mixes new prompts in
+ahead of the built-in ones. If the file isn't dated today or the phone is offline, a built-in
+weekday rotation takes over, so stale "trends" never show as today's. Update the file daily (or on a
+schedule) with prompts a person has approved.
+
 ## Build
 Requires a Mac with Xcode 15+ and two or more real iPhones (Multipeer doesn't work well in the simulator).
 

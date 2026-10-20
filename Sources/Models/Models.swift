@@ -21,6 +21,8 @@ struct RoomState: Codable, Equatable {
     var game: Game?
     var scores: [String: Int] = [:]   // game points per member id
     var feed: [String] = []           // little event log: "Sam peeked 👀"
+    var dailyTheme: String?           // e.g. "🎃 Spooky season" (from DailyContent)
+    var featured: GameKind?           // today's featured game
 
     func name(of id: String) -> String { members.first { $0.id == id }?.name ?? "Someone" }
 }

@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-20",
+  "theme": "Spooky season",
+  "emoji": "🎃",
+  "featured": "imposter",
+  "wouldYouRather": [
+    ["Spend a night in a haunted house with friends", "Spend a night alone in a fancy hotel"],
+    ["Wear the same Halloween costume every year", "Never wear a costume again"],
+    ["Get only candy for dinner for a week", "Get only vegetables as treats for a week"]
+  ],
+  "mostLikely": [
+    "Most likely to scream at a jump scare",
+    "Most likely to show up in the best Halloween costume",
+    "Most likely to eat all the candy before the party starts",
+    "Most likely to get a friend group costume together"
+  ],
+  "neverHave": [
+    "Never have I ever gone trick-or-treating way too old for it",
+    "Never have I ever made a costume out of random stuff at home",
+    "Never have I ever watched a scary movie through my fingers"
+  ],
+  "hotSeat": [
+    "What's the best costume you've ever worn or seen?",
+    "What would be your dream group costume with your friends?",
+    "What's a game you could play for hours with friends and never get bored?"
+  ],
+  "actWords": ["Ghost", "Vampire", "Witch on a broom", "Trick or treating", "Carving a pumpkin", "Mummy", "Werewolf", "Haunted house"]
+}
