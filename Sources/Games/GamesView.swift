@@ -33,44 +33,60 @@ struct GamesView: View {
     }
 
     private var picker: some View {
-        VStack(spacing: 12) {
-            if store.state.members.count < 2 {
-                Text("Games need at least 2 people. Waiting for friends…")
-                    .font(.footnote).foregroundStyle(.secondary)
-            }
-            if let theme = store.state.dailyTheme {
-                Text("Today: \(theme)")
-                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            // Today's featured game goes first.
-            let ordered = GameKind.allCases.filter { $0 == store.state.featured } + GameKind.allCases.filter { $0 != store.state.featured }
-            ForEach(ordered) { kind in
-                let ok = store.state.members.count >= kind.minPlayers
-                Button { store.send(.startGame(kind)) } label: {
-                    HStack(spacing: 14) {
-                        Text(kind.emoji).font(.system(size: 40))
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(kind.title).font(.system(.title3, design: .rounded, weight: .bold))
-                            Text(ok ? kind.blurb : "Needs \(kind.minPlayers)+ people")
-                                .font(.footnote).foregroundStyle(.secondary)
-                                .multilineTextAlignment(.leading)
-                        }
+        let count = store.state.members.count
+        let featured = store.state.featured ?? GameKind.mostLikely
+        let rest = GameKind.allCases.filter { $0 != featured }
+        return VStack(spacing: 14) {
+            // Today's pick, big.
+            Button { store.send(.startGame(featured)) } label: {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack {
+                        Text(store.state.dailyTheme.map { "Tonight · \($0)" } ?? "Tonight's pick")
+                            .font(.caption.weight(.semibold)).foregroundStyle(Theme.muted)
                         Spacer()
-                        if kind == store.state.featured {
-                            Text("TODAY").font(.caption2.weight(.bold))
-                                .padding(.horizontal, 8).padding(.vertical, 4)
-                                .background(Theme.yellow, in: Capsule())
-                                .foregroundStyle(.black)
-                        }
+                        Image(systemName: featured.symbol).font(.title3).foregroundStyle(Theme.ember)
                     }
-                    .frame(minHeight: 56)
-                    .card(tint: kind.color)
+                    Text(featured.title).font(Theme.display(32)).foregroundStyle(Theme.text)
+                    Text(count >= featured.minPlayers ? featured.blurb : "Needs \(featured.minPlayers) or more people")
+                        .font(.subheadline).foregroundStyle(Theme.muted)
+                        .multilineTextAlignment(.leading)
                 }
-                .buttonStyle(.plain)
-                .disabled(!ok)
-                .opacity(ok ? 1 : 0.45)
+                .card()
             }
+            .buttonStyle(.plain)
+            .disabled(count < featured.minPlayers)
+
+            // Everything else as one quiet list.
+            VStack(spacing: 0) {
+                ForEach(Array(rest.enumerated()), id: \.element) { idx, kind in
+                    let ok = count >= kind.minPlayers
+                    Button { store.send(.startGame(kind)) } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: kind.symbol)
+                                .font(.body).foregroundStyle(Theme.muted)
+                                .frame(width: 28)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(kind.title).font(.body.weight(.medium)).foregroundStyle(Theme.text)
+                                Text(ok ? kind.blurb : "Needs \(kind.minPlayers) or more people")
+                                    .font(.footnote).foregroundStyle(Theme.muted)
+                                    .multilineTextAlignment(.leading)
+                                    .lineLimit(2)
+                            }
+                            Spacer(minLength: 8)
+                            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(Theme.faint)
+                        }
+                        .padding(.vertical, 14)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!ok)
+                    .opacity(ok ? 1 : 0.4)
+                    if idx < rest.count - 1 { Divider().overlay(Theme.hairline).padding(.leading, 42) }
+                }
+            }
+            .padding(.horizontal, 18)
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Theme.hairline))
         }
     }
 }
@@ -86,15 +102,19 @@ struct Leaderboard: View {
             .sorted { $0.1 > $1.1 }
         if !rows.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Leaderboard").font(.headline)
+                SectionLabel("Leaderboard")
                 ForEach(Array(rows.enumerated()), id: \.offset) { i, row in
-                    HStack {
-                        Text(i == 0 ? "🏆" : "\(i + 1)").frame(width: 28)
-                        Circle().fill(Theme.color(for: row.0.id)).frame(width: 10, height: 10)
+                    HStack(spacing: 12) {
+                        Text("\(i + 1)").font(Theme.display(20)).foregroundStyle(i == 0 ? Theme.ember : Theme.faint)
+                            .frame(width: 22)
+                        Monogram(id: row.0.id, size: 28)
                         Text(row.0.id == store.me ? "\(row.0.name) (you)" : row.0.name)
                         Spacer()
-                        Text("\(row.1) pt\(row.1 == 1 ? "" : "s")").fontWeight(.semibold)
+                        Text("\(row.1)").font(.body.monospacedDigit().weight(.semibold))
+                        Text(row.1 == 1 ? "pt" : "pts").font(.footnote).foregroundStyle(Theme.muted)
                     }
+                    .accessibilityElement(children: .combine)
+                    .padding(.vertical, 2)
                 }
             }
             .card()
@@ -105,19 +125,19 @@ struct Leaderboard: View {
 private struct TalkNudge: View {
     let text: String
     var body: some View {
-        Text("🗣️ \(text)")
-            .font(.system(.subheadline, design: .rounded, weight: .semibold))
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity)
-            .padding(12)
-            .background(Theme.yellow.opacity(0.16), in: RoundedRectangle(cornerRadius: 16))
+        Label(text, systemImage: "bubble.left.and.bubble.right")
+            .font(.subheadline)
+            .foregroundStyle(Theme.muted)
+            .multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 4)
     }
 }
 
 private struct RoundTitle: View {
     let text: String
     var body: some View {
-        Text(text).font(.system(.subheadline, design: .rounded, weight: .semibold))
+        Text(text).font(.subheadline.weight(.medium))
             .foregroundStyle(.secondary).frame(maxWidth: .infinity)
     }
 }
@@ -161,12 +181,12 @@ private struct WYRView: View {
         let voters = store.state.members.filter { game.votes[$0.id] == i }.map(\.name)
         return Button { store.send(.vote(i)) } label: {
             VStack(alignment: .leading, spacing: 6) {
-                Text(text).font(.system(.title3, design: .rounded, weight: .semibold)).multilineTextAlignment(.leading)
+                Text(text).font(Theme.display(22)).multilineTextAlignment(.leading)
                 if game.revealed {
                     Text(voters.isEmpty ? "Nobody 😬" : "\(voters.count): \(voters.joined(separator: ", "))")
                         .font(.footnote).foregroundStyle(.secondary)
                 } else if mine {
-                    Text("Your pick ✓ (tap the other to change)").font(.footnote.bold())
+                    Text("Your pick · tap the other to change").font(.footnote.bold())
                 }
             }
             .frame(minHeight: 64, alignment: .leading)
@@ -189,7 +209,7 @@ private struct MostLikelyView: View {
         let top = tally.values.max() ?? 0
         VStack(spacing: 10) {
             Text(game.prompt)
-                .font(.system(.title2, design: .rounded, weight: .bold))
+                .font(Theme.display(26))
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
                 .card(tint: Theme.yellow)
@@ -198,11 +218,11 @@ private struct MostLikelyView: View {
                 let n = tally[m.id] ?? 0
                 Button { store.send(.voteFor(m.id)) } label: {
                     HStack {
-                        Circle().fill(Theme.color(for: m.id)).frame(width: 14, height: 14)
+                        Monogram(id: m.id, size: 30)
                         Text(m.id == store.me ? "\(m.name) (you)" : m.name).fontWeight(.semibold)
                         Spacer()
                         if game.revealed {
-                            Text("\(n == top && n > 0 ? "👑 " : "")\(n)").fontWeight(.bold)
+                            Text("\(n)").fontWeight(.bold)
                         } else if game.votes[store.me] == m.id {
                             Text("✓")
                         }
@@ -236,13 +256,13 @@ private struct NeverHaveView: View {
         let haveNames = store.state.members.filter { game.haves[$0.id] == true }.map(\.name)
         VStack(spacing: 12) {
             Text(game.prompt)
-                .font(.system(.title2, design: .rounded, weight: .bold))
+                .font(Theme.display(26))
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
                 .card(tint: Theme.lime)
             if game.revealed {
                 Text(haveNames.isEmpty ? "Nobody has! Angels 😇" : "I have: \(haveNames.joined(separator: ", "))")
-                    .font(.system(.headline, design: .rounded))
+                    .font(.headline)
                     .multilineTextAlignment(.center)
                 TalkNudge(text: game.talk)
             } else {
@@ -259,7 +279,7 @@ private struct NeverHaveView: View {
 
     private func answer(_ title: String, _ have: Bool, _ selected: Bool) -> some View {
         Button { store.send(.answerHave(have)) } label: {
-            Text(title).font(.system(.headline, design: .rounded, weight: .bold))
+            Text(title).font(.headline)
                 .frame(maxWidth: .infinity, minHeight: 56)
                 .card(tint: have ? Theme.pink : Theme.cyan)
                 .overlay(RoundedRectangle(cornerRadius: 22).stroke(selected ? .white : .clear, lineWidth: 3))
@@ -279,7 +299,7 @@ private struct HotSeatView: View {
         VStack(spacing: 12) {
             RoundTitle(text: "🔥 \(mine ? "You're" : "\(store.state.name(of: game.seat)) is") in the hot seat")
             Text(game.question)
-                .font(.system(.title2, design: .rounded, weight: .bold))
+                .font(Theme.display(26))
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
                 .card(tint: Theme.pink)
@@ -329,7 +349,7 @@ private struct TwoTruthsView: View {
                 statements(isAuthor: isAuthor)
                 let right = store.state.members.filter { game.guesses[$0.id] == game.lie }.map(\.name)
                 Text(right.isEmpty ? "Nobody caught the lie! 😈 (+1 each for \(author))" : "Caught it: \(right.joined(separator: ", ")) 🎯")
-                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                    .font(.subheadline.weight(.medium))
                 TalkNudge(text: "Ask \(author) for the full story behind one of them.")
             }
         }
@@ -346,7 +366,7 @@ private struct TwoTruthsView: View {
                     TextField("Statement \(i + 1)", text: $drafts[i], axis: .vertical)
                         .submitLabel(.done)
                     Button { lie = i } label: {
-                        Text(lie == i ? "🤥 lie" : "truth").font(.footnote.bold()).frame(minWidth: 52, minHeight: 36)
+                        Text(lie == i ? "Lie" : "Truth").font(.footnote.bold()).frame(minWidth: 52, minHeight: 36)
                     }
                     .buttonStyle(.bordered)
                     .tint(lie == i ? .orange : .gray)
@@ -369,7 +389,7 @@ private struct TwoTruthsView: View {
                     HStack {
                         Text(text).multilineTextAlignment(.leading)
                         Spacer()
-                        if revealed { Text(i == game.lie ? "🤥 LIE" : "✅ true").font(.footnote.bold()) }
+                        if revealed { Text(i == game.lie ? "Lie" : "True").font(.footnote.bold()) }
                         else if game.guesses[store.me] == i { Text("your guess").font(.footnote.bold()) }
                     }
                     .frame(minHeight: 40)
@@ -408,20 +428,20 @@ private struct ActItOutView: View {
                     let left = max(0, Int((game.endsAt ?? .now).timeIntervalSince(ctx.date).rounded(.up)))
                     VStack(spacing: 12) {
                         Text("\(left)s")
-                            .font(.system(size: 54, weight: .light, design: .rounded)).monospacedDigit()
+                            .font(Theme.display(56, weight: .light)).monospacedDigit()
                             .foregroundStyle(left <= 10 ? Theme.pink : .white)
                         if isActor {
                             Text(game.word)
-                                .font(.system(size: 34, weight: .heavy, design: .rounded))
+                                .font(Theme.display(36, weight: .semibold))
                                 .multilineTextAlignment(.center)
                                 .frame(maxWidth: .infinity, minHeight: 90)
                                 .card(tint: Theme.orange)
                             HStack(spacing: 10) {
-                                Button("Got it ✓") { store.send(.gotIt) }.buttonStyle(PrimaryButton(tint: Theme.lime, secondary: Theme.cyan))
+                                Button("Got it") { store.send(.gotIt) }.buttonStyle(PrimaryButton(tint: Theme.lime, secondary: Theme.cyan))
                                 Button("Skip ➜") { store.send(.skipWord) }.buttonStyle(PrimaryButton.light)
                             }
                         } else {
-                            Text("Shout your guesses! 📣").font(.system(.title3, design: .rounded, weight: .bold)).card()
+                            Text("Shout your guesses").font(.title3.weight(.semibold)).card()
                         }
                         Text("Got \(game.got) · Skipped \(game.passed)").font(.footnote).foregroundStyle(.secondary)
                     }
@@ -430,8 +450,8 @@ private struct ActItOutView: View {
                     }
                 }
             case .done:
-                Text("Time! \(game.got) word\(game.got == 1 ? "" : "s") guessed 🎉")
-                    .font(.system(.title2, design: .rounded, weight: .bold)).card(tint: Theme.orange)
+                Text("Time! \(game.got) word\(game.got == 1 ? "" : "s") guessed")
+                    .font(Theme.display(26)).card(tint: Theme.orange)
                 TalkNudge(text: "Best/worst acting moment? Roast gently.")
             }
         }
@@ -468,7 +488,7 @@ private struct ImposterView: View {
                 ForEach(store.state.members.filter { $0.id != store.me }) { m in
                     Button { store.send(.voteFor(m.id)) } label: {
                         HStack {
-                            Circle().fill(Theme.color(for: m.id)).frame(width: 14, height: 14)
+                            Monogram(id: m.id, size: 30)
                             Text(m.name).fontWeight(.semibold)
                             Spacer()
                             if game.votes[store.me] == m.id { Text("✓") }
@@ -484,7 +504,7 @@ private struct ImposterView: View {
             case .revealed:
                 VStack(spacing: 6) {
                     Text("\(store.state.name(of: game.imposter)) was the imposter")
-                        .font(.system(.title3, design: .rounded, weight: .bold))
+                        .font(.title3.weight(.semibold))
                     Text("The word was \(game.word)")
                     Text(game.caught ? "Caught! +1 for everyone else 🎯" : "Fooled you all! +2 for the imposter 😈")
                         .font(.footnote).foregroundStyle(.secondary)
@@ -504,13 +524,13 @@ private struct ImposterView: View {
             VStack(spacing: 4) {
                 if peek {
                     Text(amImposter ? "You're the IMPOSTER" : game.word)
-                        .font(.system(size: 28, weight: .heavy, design: .rounded))
+                        .font(Theme.display(30, weight: .semibold))
                     Text(amImposter ? "You don't know the word. Blend in." : "Don't say it. Give a clue.")
                         .font(.footnote).foregroundStyle(.secondary)
                     Text("tap to hide").font(.caption).foregroundStyle(.secondary)
                 } else {
-                    Text("Tap to see your role").font(.system(.title3, design: .rounded, weight: .bold))
-                    Text("Keep your screen private 🤫").font(.footnote).foregroundStyle(.secondary)
+                    Text("Tap to see your role").font(.title3.weight(.semibold))
+                    Text("Keep your screen private").font(.footnote).foregroundStyle(.secondary)
                 }
             }
             .frame(maxWidth: .infinity, minHeight: 80)

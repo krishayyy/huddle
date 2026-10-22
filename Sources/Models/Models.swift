@@ -62,6 +62,18 @@ enum GameKind: String, Codable, CaseIterable, Identifiable {
         case .hotSeat: "🔥"
         }
     }
+    /// SF Symbol used in the interface (emoji stay in the prompts, not the chrome).
+    var symbol: String {
+        switch self {
+        case .imposter: "eye.slash"
+        case .mostLikely: "crown"
+        case .neverHave: "hand.raised"
+        case .wouldYouRather: "arrow.left.arrow.right"
+        case .actItOut: "theatermasks"
+        case .twoTruths: "questionmark.bubble"
+        case .hotSeat: "flame"
+        }
+    }
     var color: Color {
         switch self {
         case .imposter: Theme.pink

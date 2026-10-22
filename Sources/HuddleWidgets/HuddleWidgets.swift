@@ -7,9 +7,11 @@ struct HuddleWidgets: WidgetBundle {
     var body: some Widget { HuddleLiveActivity() }
 }
 
-private let violet = Color(red: 0.76, green: 0.68, blue: 1.0)
-private let cyan = Color(red: 0.62, green: 0.86, blue: 1.0)
-private let pink = Color(red: 1.0, green: 0.72, blue: 0.88)
+// Same tokens as the app's Theme: ember for the lock, moss for "locked in", cream type.
+private let violet = Color(red: 1.0, green: 0.353, blue: 0.122)     // ember
+private let cyan = Color(red: 0.710, green: 0.851, blue: 0.612)     // moss
+private let pink = Color(red: 1.0, green: 0.353, blue: 0.122)       // ember
+private let cream = Color(red: 0.953, green: 0.937, blue: 0.906)
 
 /// The countdown on the lock screen and in the Dynamic Island, so a glance at a locked phone
 /// shows how long is left without opening anything.
@@ -17,7 +19,7 @@ struct HuddleLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: HuddleActivityAttributes.self) { context in
             LockScreenCard(context: context)
-                .activityBackgroundTint(Color(red: 0.06, green: 0.05, blue: 0.14).opacity(0.85))
+                .activityBackgroundTint(Color(red: 0.047, green: 0.043, blue: 0.039).opacity(0.9))
                 .activitySystemActionForegroundColor(.white)
         } dynamicIsland: { context in
             DynamicIsland {
@@ -31,7 +33,7 @@ struct HuddleLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     Text(timerInterval: Date.now...context.state.endsAt, countsDown: true)
-                        .font(.system(size: 40, weight: .light, design: .rounded))
+                        .font(.system(size: 40, weight: .light, design: .serif))
                         .monospacedDigit()
                         .frame(maxWidth: .infinity)
                 }
@@ -65,16 +67,16 @@ private struct LockScreenCard: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(context.attributes.groupName)
-                    .font(.headline).foregroundStyle(.white)
+                    .font(.headline).foregroundStyle(cream)
                 Text("\(context.state.lockedIn) of \(context.state.total) still locked in")
                     .font(.subheadline)
                     .foregroundStyle(context.state.lockedIn == context.state.total ? cyan : pink)
             }
             Spacer()
             Text(timerInterval: Date.now...context.state.endsAt, countsDown: true)
-                .font(.system(size: 34, weight: .light, design: .rounded))
+                .font(.system(size: 34, weight: .light, design: .serif))
                 .monospacedDigit()
-                .foregroundStyle(.white)
+                .foregroundStyle(cream)
                 .multilineTextAlignment(.trailing)
                 .frame(maxWidth: 110)
         }

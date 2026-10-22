@@ -17,54 +17,78 @@ struct LockView: View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let lock = store.state.lock
             let remaining = max(0, (lock?.endsAt ?? .now).timeIntervalSince(context.date))
-            VStack(spacing: 20) {
-                Spacer()
+            VStack(spacing: 0) {
+                HStack {
+                    Label(shield.engaged ? "Phone locked" : "Locked in", systemImage: "lock.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.ember)
+                    Spacer()
+                    Text(store.state.members.first.map { "\($0.name)'s huddle" } ?? "")
+                        .font(.caption).foregroundStyle(Theme.muted)
+                }
+                .padding(.top, 8)
+
+                Spacer(minLength: 24)
+
                 ZStack {
-                    Circle()
-                        .fill(RadialGradient(colors: [Theme.violet.opacity(0.55), Theme.cyan.opacity(0.18), .clear], center: .center, startRadius: 10, endRadius: 150))
-                        .frame(width: 290, height: 290)
-                        .scaleEffect(breathe ? 1.08 : 0.92)
+                    // Track + progress: one thin ember line, nothing else.
+                    Circle().stroke(Theme.hairline, lineWidth: 2)
                     Circle()
                         .trim(from: 0, to: progress(remaining))
-                        .stroke(AngularGradient(colors: [Theme.pink, Theme.orange, Theme.yellow, Theme.lime, Theme.cyan, Theme.pink], center: .center),
-                                style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                        .stroke(Theme.ember, style: StrokeStyle(lineWidth: 2, lineCap: .round))
                         .rotationEffect(.degrees(-90))
-                        .frame(width: 240, height: 240)
-                    VStack(spacing: 4) {
+                        .animation(.linear(duration: 1), value: remaining)
+                    // A soft ember glow that breathes very slowly.
+                    Circle()
+                        .fill(RadialGradient(colors: [Theme.ember.opacity(0.16), .clear], center: .center, startRadius: 0, endRadius: 150))
+                        .scaleEffect(breathe ? 1.0 : 0.86)
+                        .opacity(breathe ? 1 : 0.6)
+                    VStack(spacing: 8) {
                         Text(format(remaining))
-                            .font(.system(size: 60, weight: .light, design: .rounded))
+                            .font(Theme.display(76, weight: .light))
                             .monospacedDigit()
+                            .foregroundStyle(Theme.text)
+                            .contentTransition(.numericText(countsDown: true))
                         Text("phones down, heads up")
-                            .font(.subheadline).foregroundStyle(.secondary)
+                            .font(.footnote).foregroundStyle(Theme.muted)
                     }
                 }
+                .frame(width: 290, height: 290)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(Int(remaining) / 60) minutes \(Int(remaining) % 60) seconds left")
                 .onAppear {
                     if !reduceMotion {
-                        withAnimation(.easeInOut(duration: 4).repeatForever(autoreverses: true)) { breathe = true }
+                        withAnimation(.easeInOut(duration: 5).repeatForever(autoreverses: true)) { breathe = true }
                     }
                 }
+
+                Spacer(minLength: 24)
 
                 scoreboard
 
                 if !shield.engaged {
-                    Text("Other apps aren't blocked on this phone. Turn on \"Lock all my other apps\" in the lobby next time.")
-                        .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                } else {
-                    Label("Everything else on your phone is locked", systemImage: "lock.fill")
-                        .font(.footnote.weight(.semibold)).foregroundStyle(Theme.lime)
+                    Text("Other apps aren't blocked on this phone. Turn on Lock my other apps in the lobby next time.")
+                        .font(.caption).foregroundStyle(Theme.faint).multilineTextAlignment(.center)
+                        .padding(.top, 14)
                 }
 
-                Spacer()
-                Button("Play a game 🎲") { showGames = true }
-                    .buttonStyle(PrimaryButton())
-                HStack(spacing: 24) {
-                    Button("I need my phone", role: .destructive) { confirmBail = true }
+                Spacer(minLength: 24)
+
+                Button { showGames = true } label: {
+                    Label("Play a game", systemImage: "die.face.five")
+                }
+                .buttonStyle(PrimaryButton())
+
+                HStack(spacing: 28) {
+                    Button("I need my phone") { confirmBail = true }
                     if store.isHost {
-                        Button("End for everyone", role: .destructive) { confirmEnd = true }
+                        Button("End for everyone") { confirmEnd = true }
                     }
                 }
-                .font(.footnote)
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(Theme.muted)
                 .frame(minHeight: 44)
+                .padding(.top, 6)
             }
             .padding(24)
             .onChange(of: remaining <= 0) { _, done in
@@ -85,6 +109,7 @@ struct LockView: View {
                     .scrollDismissesKeyboard(.interactively)
                     .background(Theme.background.ignoresSafeArea())
                     .navigationTitle("Play together")
+                    .toolbarBackground(Theme.ink, for: .navigationBar)
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) { Button("Done") { showGames = false } }
@@ -136,21 +161,24 @@ struct LockView: View {
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
     }
 
+    /// Everyone's face, green ring if they're still locked in, ember if they peeked.
     private var scoreboard: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        HStack(spacing: 18) {
             ForEach(store.state.members) { m in
-                HStack {
-                    HStack(spacing: 8) {
-                        Circle().fill(Theme.color(for: m.id)).frame(width: 12, height: 12)
-                        Text(m.name).fontWeight(.semibold)
-                    }
-                    Spacer()
-                    Text(m.bails == 0 ? "✅ locked in" : "👀 peeked ×\(m.bails)")
-                        .foregroundStyle(m.bails == 0 ? .green : .orange)
+                VStack(spacing: 8) {
+                    Monogram(id: m.id, size: 44, dimmed: m.bails > 0)
+                        .padding(3)
+                        .overlay(Circle().strokeBorder(m.bails == 0 ? Theme.moss : Theme.ember, lineWidth: 1.5))
+                    Text(m.id == store.me ? "You" : m.name)
+                        .font(.caption.weight(.medium)).foregroundStyle(Theme.text).lineLimit(1)
+                    Text(m.bails == 0 ? "locked in" : "peeked \(m.bails)×")
+                        .font(.caption2).foregroundStyle(m.bails == 0 ? Theme.moss : Theme.ember)
                 }
+                .frame(maxWidth: 76)
+                .accessibilityElement(children: .combine)
             }
         }
-        .card(tint: Theme.cyan)
+        .frame(maxWidth: .infinity)
     }
 
     private var lockedIn: Int { store.state.members.filter { $0.bails == 0 }.count }

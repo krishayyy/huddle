@@ -78,6 +78,18 @@ final class RoomStore: ObservableObject {
         net?.browse()
     }
 
+    #if DEBUG
+    /// Simulator-only preview: `-demoLock` fills a fake room mid-lock so the lock screen can be
+    /// checked without three phones. Never compiled into release builds.
+    func demoLock() {
+        me = "Krishay#0001"
+        role = .host
+        let now = Date()
+        state = RoomState(members: [Member(id: me), Member(id: "Maya#0002"), Member(id: "Theo#0003", bails: 1), Member(id: "Priya#0004")],
+                          lock: LockInfo(startedAt: now.addingTimeInterval(-11 * 60), endsAt: now.addingTimeInterval(34 * 60 + 12)))
+    }
+    #endif
+
     // MARK: Coaster (NFC) join
 
     @Published private(set) var lookingForSpot: String?
@@ -155,7 +167,7 @@ final class RoomStore: ObservableObject {
             if !lockActive { members = members.filter { $0.id == me || ids.contains($0.id) } }
             for id in ids where !members.contains(where: { $0.id == id }) {
                 members.append(Member(id: id))
-                log("\(Member(id: id).name) joined 👋")
+                log("\(Member(id: id).name) joined")
             }
             if members != state.members { state.members = members }
             broadcast()
@@ -224,7 +236,7 @@ final class RoomStore: ObservableObject {
             state.lock = LockInfo(startedAt: now, endsAt: now.addingTimeInterval(Double(minutes) * 60))
             for i in state.members.indices { state.members[i].bails = 0 }
             leftLock = false
-            log("Lock started: \(minutes) min 🔒")
+            log("Lock started: \(minutes) min")
 
         case .endLock:
             guard id == me else { break }
@@ -234,12 +246,12 @@ final class RoomStore: ObservableObject {
         case .bail:
             guard lockActive, let i = state.members.firstIndex(where: { $0.id == id }) else { break }
             state.members[i].bails += 1
-            log("\(who) peeked at their phone 👀")
+            log("\(who) peeked at their phone")
 
         case .startGame(let kind):
             guard count >= kind.minPlayers else { break }
             state.game = newGame(kind, seat: id)
-            log("\(who) started \(kind.title) \(kind.emoji)")
+            log("\(who) started \(kind.title)")
 
         case .stopGame:
             state.game = nil
@@ -347,10 +359,10 @@ final class RoomStore: ObservableObject {
         g.caught = leaders.count == 1 && leaders.first == g.imposter
         if g.caught {
             for m in state.members where m.id != g.imposter { award(m.id, 1) }
-            log("\(state.name(of: g.imposter)) was the imposter. Caught! 🎯")
+            log("\(state.name(of: g.imposter)) was the imposter. Caught.")
         } else {
             award(g.imposter, 2)
-            log("\(state.name(of: g.imposter)) fooled everyone 😈")
+            log("\(state.name(of: g.imposter)) fooled everyone")
         }
         g.phase = .revealed
         state.game = .imposter(g)

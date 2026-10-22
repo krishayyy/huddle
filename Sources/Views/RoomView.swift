@@ -11,17 +11,23 @@ struct RoomView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 32) {
                 header
-                membersCard
-                lockCard
-                Text("Play").font(.title3.bold())
-                GamesView()
-                Button("Leave huddle", role: .destructive) { confirmLeave = true }
+                members
+                lockSection
+                VStack(alignment: .leading, spacing: 12) {
+                    SectionLabel("Play")
+                    GamesView()
+                }
+                if !store.state.feed.isEmpty { feed }
+                Button(store.isHost ? "End huddle" : "Leave huddle") { confirmLeave = true }
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Theme.muted)
                     .frame(maxWidth: .infinity, minHeight: 44)
-                    .padding(.top, 8)
             }
-            .padding(20)
+            .padding(.horizontal, 24)
+            .padding(.top, 20)
+            .padding(.bottom, 24)
         }
         .overlay(alignment: .top) {
             if store.state.lock != nil && !store.lockActive && store.myBails == 0 { Confetti() }
@@ -33,57 +39,88 @@ struct RoomView: View {
         }
     }
 
+    private var hostName: String { store.state.members.first?.name ?? "Your" }
+
     private var header: some View {
-        HStack {
-            Text("Your huddle").font(.system(size: 34, weight: .bold, design: .rounded))
-            Spacer()
+        VStack(alignment: .leading, spacing: 6) {
+            Text(store.isHost ? "Your huddle" : "\(hostName)'s huddle")
+                .font(Theme.display(36, weight: .medium))
+                .foregroundStyle(Theme.text)
+                .accessibilityAddTraits(.isHeader)
             if store.state.lock != nil && !store.lockActive {
-                Text(store.myBails == 0 ? "🎉 Locked in the whole time" : "Lock complete").font(.subheadline)
+                Label(store.myBails == 0 ? "You stayed locked in the whole time" : "Lock complete",
+                      systemImage: store.myBails == 0 ? "checkmark.seal" : "checkmark")
+                    .font(.subheadline).foregroundStyle(store.myBails == 0 ? Theme.moss : Theme.muted)
+            } else if let theme = store.state.dailyTheme {
+                // Drop a leading emoji from the daily theme so the header stays typographic.
+                Text(theme.split(separator: " ").drop { !$0.contains(where: \.isLetter) }.joined(separator: " ")).font(.subheadline).foregroundStyle(Theme.muted)
             }
         }
     }
 
-    private var membersCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Here now (\(store.state.members.count))").font(.headline)
+    private var members: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SectionLabel("Here now · \(store.state.members.count)")
             FlowRow(items: store.state.members) { m in
-                Text(m.id == store.me ? "\(m.name) (you)" : m.name)
-                    .padding(.horizontal, 12).padding(.vertical, 6)
-                    .background(Theme.color(for: m.id).opacity(0.9), in: Capsule())
-                    .foregroundStyle(.black)
-                    .font(.system(.subheadline, design: .rounded, weight: .bold))
+                HStack(spacing: 8) {
+                    Monogram(id: m.id, size: 28)
+                    Text(m.id == store.me ? "\(m.name) (you)" : m.name)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(Theme.text)
+                }
+                .padding(.leading, 4).padding(.trailing, 14).padding(.vertical, 4)
+                .background(Theme.surface, in: Capsule())
+                .overlay(Capsule().strokeBorder(Theme.hairline))
+                .accessibilityElement(children: .combine)
             }
             if store.state.members.count < 2 {
-                Text(store.isHost ? "Friends: open Huddle → Join friends nearby."
+                Text(store.isHost ? "Friends open Huddle and tap Join friends nearby, or tap the same coaster."
                                   : "Waiting on the host…")
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.footnote).foregroundStyle(Theme.muted)
             }
         }
-        .card(tint: Theme.violet)
     }
 
-    private var lockCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("🔒 Lock phones together").font(.headline)
+    private var lockSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SectionLabel("Lock in together")
             if store.isHost {
-                Picker("Minutes", selection: $minutes) {
-                    ForEach(options, id: \.self) { Text("\($0) min").tag($0) }
+                // Duration as large serif numbers instead of a segmented control.
+                HStack(spacing: 0) {
+                    ForEach(options, id: \.self) { m in
+                        Button { withAnimation(.snappy) { minutes = m } } label: {
+                            VStack(spacing: 2) {
+                                Text("\(m)").font(Theme.display(26, weight: minutes == m ? .medium : .light))
+                                    .monospacedDigit()
+                                Text("min").font(.caption2).foregroundStyle(Theme.muted)
+                            }
+                            .foregroundStyle(minutes == m ? Theme.text : Theme.faint)
+                            .frame(maxWidth: .infinity, minHeight: 60)
+                            .background(minutes == m ? Theme.raised : .clear, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("\(m) minutes")
+                        .accessibilityAddTraits(minutes == m ? .isSelected : [])
+                    }
                 }
-                .pickerStyle(.segmented)
-                Button("Lock in for \(minutes) min") {
+                .padding(4)
+                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Theme.hairline))
+                .sensoryFeedback(.selection, trigger: minutes)
+
+                Button {
                     store.send(.startLock(minutes: minutes))   // LockView engages the app shield
+                } label: {
+                    Label("Lock in for \(minutes) minutes", systemImage: "lock.fill")
                 }
-                .buttonStyle(PrimaryButton())
+                .buttonStyle(PrimaryButton.ember)
                 .disabled(store.state.members.count < 2)
-                if store.state.members.count < 2 {
-                    Text("Waiting for at least one friend…")
-                        .font(.footnote).foregroundStyle(.secondary)
-                }
             } else {
-                Text("The host picks the time. You'll all lock at once.")
-                    .foregroundStyle(.secondary)
+                Text("The host picks the time. Everyone locks at once.")
+                    .font(.subheadline).foregroundStyle(Theme.muted)
             }
-            Divider().overlay(.white.opacity(0.2))
+
             Toggle(isOn: Binding(
                 get: { shield.wantsFullLock },
                 set: { on in
@@ -96,19 +133,24 @@ struct RoomView: View {
                         shield.wantsFullLock = false
                     }
                 })) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Lock all my other apps").fontWeight(.semibold)
-                    Text("Every other app and site is blocked until the timer ends. Calls and emergency stay on. Huddle stays open for games.")
-                        .font(.footnote).foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Lock my other apps").font(.body.weight(.medium)).foregroundStyle(Theme.text)
+                    Text("Everything except calls, emergency and Huddle is blocked until the timer ends.")
+                        .font(.footnote).foregroundStyle(Theme.muted)
                 }
             }
-            .tint(Theme.violet)
-            if !store.state.feed.isEmpty {
-                Divider().overlay(.white.opacity(0.2))
-                ForEach(store.state.feed.suffix(3), id: \.self) { Text($0).font(.footnote).foregroundStyle(.secondary) }
+            .tint(Theme.ember)
+            .padding(.top, 4)
+        }
+    }
+
+    private var feed: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("Activity")
+            ForEach(Array(store.state.feed.suffix(4).reversed().enumerated()), id: \.offset) { _, line in
+                Text(line).font(.footnote).foregroundStyle(Theme.muted)
             }
         }
-        .card(tint: Theme.pink)
     }
 }
 
