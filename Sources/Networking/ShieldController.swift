@@ -56,6 +56,7 @@ final class ShieldController: ObservableObject {
     }
 
     func release() {
+        LiveActivityController.end()
         store.clearAllSettings()
         center.stopMonitoring([activity])
         engaged = false
@@ -71,7 +72,7 @@ final class ShieldController: ObservableObject {
     var authorized: Bool { false }
     func requestAccess() async {}
     func engage(until end: Date) {}
-    func release() {}
+    func release() { LiveActivityController.end() }
 }
 
 #endif

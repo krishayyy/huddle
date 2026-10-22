@@ -11,6 +11,19 @@ Teens put their phones down together and play conversation games in real time.
    Imposter, Most Likely To, Never Have I Ever, Would You Rather, Act It Out, Two Truths & a Lie,
    Hot Seat. Points and a leaderboard for Imposter and Two Truths.
 
+3. **Tap a Huddle coaster** (NFC): stick a cheap NFC sticker (NTAG213/215) on a coaster in the middle
+   of the table. The first person to tap it starts the huddle, everyone after joins it. A blank sticker
+   is set up automatically on its first tap.
+4. **Lock screen countdown**: a Live Activity shows the timer and how many friends are still locked in
+   on the lock screen and in the Dynamic Island.
+5. **Phone-free together**: Home shows the total time you've spent phone-free with friends, how many
+   friends, and how many huddles.
+
+## Privacy
+No accounts, no sign-in, no analytics, no tracking. Phones talk to each other directly over
+Bluetooth/Wi-Fi. Your name and stats are stored only on your phone. The only internet request is
+downloading the public `content/daily.json` prompt file. See `Sources/PrivacyInfo.xcprivacy`.
+
 ## Fresh every day
 The host's phone fetches `content/daily.json` once a day (data only, filtered for length and
 unsafe words). It sets a theme, pins a featured game with a TODAY badge, and mixes new prompts in
@@ -25,7 +38,10 @@ Requires a Mac with Xcode 15+ and two or more real iPhones (Multipeer doesn't wo
 brew install xcodegen
 cd Huddle && xcodegen && open Huddle.xcodeproj
 ```
-Set your team in `project.yml` first. No XcodeGen? Make a new iOS App project (SwiftUI, iOS 17),
+Set your team in `project.yml` first, and change `com.example` in **both** `bundleIdPrefix` and
+`BUNDLE_ID_PREFIX`. Family Controls and NFC need a paid Apple developer account; to build without them,
+delete those entitlement lines in `project.yml` (the app falls back to the social lock and hides the
+coaster button). No XcodeGen? Make a new iOS App project (SwiftUI, iOS 17),
 drag in `Sources/`, and copy the Info.plist keys from `project.yml`.
 
 ## Honest limits

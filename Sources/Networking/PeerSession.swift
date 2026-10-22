@@ -13,9 +13,9 @@ final class PeerSession: NSObject {
 
     var onReceive: ((Data, MCPeerID) -> Void)?
     var onPeersChanged: (([MCPeerID]) -> Void)?
-    var onRoomsChanged: (([MCPeerID: String]) -> Void)?
+    var onRoomsChanged: (([MCPeerID: [String: String]]) -> Void)?
 
-    private var rooms: [MCPeerID: String] = [:]
+    private var rooms: [MCPeerID: [String: String]] = [:]   // discovery info: "room", optional "spot"
 
     var connectedPeers: [MCPeerID] { session.connectedPeers }
 
@@ -28,8 +28,12 @@ final class PeerSession: NSObject {
 
     deinit { stop() }
 
-    func advertise(roomName: String) {
-        let adv = MCNearbyServiceAdvertiser(peer: myPeer, discoveryInfo: ["room": roomName],
+    /// `spot` is the ID of the NFC coaster this huddle was started from, so people who tap the
+    /// same coaster land in the same room without picking from a list.
+    func advertise(roomName: String, spot: String? = nil) {
+        var info = ["room": roomName]
+        if let spot { info["spot"] = spot }
+        let adv = MCNearbyServiceAdvertiser(peer: myPeer, discoveryInfo: info,
                                             serviceType: Self.serviceType)
         adv.delegate = self
         adv.startAdvertisingPeer()
@@ -80,7 +84,9 @@ extension PeerSession: MCNearbyServiceAdvertiserDelegate {
 
 extension PeerSession: MCNearbyServiceBrowserDelegate {
     func browser(_ browser: MCNearbyServiceBrowser, foundPeer peerID: MCPeerID, withDiscoveryInfo info: [String: String]?) {
-        rooms[peerID] = info?["room"] ?? peerID.displayName
+        var entry = info ?? [:]
+        if entry["room"] == nil { entry["room"] = peerID.displayName }
+        rooms[peerID] = entry
         onRoomsChanged?(rooms)
     }
     func browser(_ browser: MCNearbyServiceBrowser, lostPeer peerID: MCPeerID) {

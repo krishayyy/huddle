@@ -36,6 +36,18 @@ Needs 3 iPhones (2 for most things, 3 for Imposter). Tick each after you've trie
 - [ ] **I need my phone** and **End for everyone** both unlock immediately
 - [ ] Toggle off (or deny the permission) → lock screen warns other apps aren't blocked
 
+## New: coaster, Live Activity, stats
+- [ ] **Huddle stays usable during a full lock** (most important: if Huddle itself gets the "Locked with friends" screen, tell the team right away)
+- [ ] Host taps **End for everyone** with full lock on → guests' other apps unlock immediately too
+- [ ] **Tap a Huddle coaster** on a blank sticker → "New Huddle coaster ready", phone starts a huddle
+- [ ] Second phone taps the same coaster → joins that huddle automatically (no list)
+- [ ] During a lock, lock the phone → countdown shows on the lock screen and in the Dynamic Island
+- [ ] Someone peeks → "X of Y still locked in" updates on the lock screen
+- [ ] Lock ends or is ended → the Live Activity disappears
+- [ ] Finish a lock without peeking → Home "phone-free with friends" goes up by minutes × friends
+- [ ] Settings → Accessibility → Larger Text at max: Home and lobby still readable, nothing cut off
+- [ ] VoiceOver on Home: stats read as one item each, the hug emoji is skipped
+
 ## Games (try each on 2+ phones; Imposter on 3+)
 - [ ] Each tile starts its game on every phone; Imposter tile dimmed with "Needs 3+ people" with 2 people
 - [ ] **Next round** → new prompt, no repeats until the list runs out; **End game** → back to picker

@@ -5,6 +5,7 @@ import SwiftUI
 struct NearbyRoom: Identifiable {
     let peer: MCPeerID
     let name: String
+    var spot: String? = nil
     var id: String { peer.displayName }
 }
 
@@ -47,18 +48,19 @@ final class RoomStore: ObservableObject {
         }
         n.onRoomsChanged = { [weak self] rooms in
             Task { @MainActor in
-                self?.nearby = rooms.map { NearbyRoom(peer: $0.key, name: $0.value) }
+                self?.nearby = rooms.map { NearbyRoom(peer: $0.key, name: $0.value["room"] ?? "", spot: $0.value["spot"]) }
                     .sorted { $0.name < $1.name }
+                self?.joinSpotIfFound()
             }
         }
         net = n
     }
 
-    func host(name: String) {
+    func host(name: String, spot: String? = nil) {
         boot(name: name)
         role = .host
         state = RoomState(members: [Member(id: me)])
-        net?.advertise(roomName: "\(state.name(of: me))'s huddle")
+        net?.advertise(roomName: "\(state.name(of: me))'s huddle", spot: spot)
         // Pull today's theme + prompts in the background; games work immediately without it.
         Task { [weak self] in
             let d = await DailyContent.load()
@@ -74,6 +76,31 @@ final class RoomStore: ObservableObject {
         guard net == nil || role == .none, !connecting else { return }
         boot(name: name)
         net?.browse()
+    }
+
+    // MARK: Coaster (NFC) join
+
+    @Published private(set) var lookingForSpot: String?
+
+    /// Someone tapped a Huddle coaster. If a huddle from that coaster is nearby, join it;
+    /// if nobody has started one within a few seconds, this phone starts it.
+    func tapSpot(_ spot: String, name: String) {
+        guard role == .none, !connecting else { return }
+        boot(name: name)
+        lookingForSpot = spot
+        net?.browse()
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            guard let self, self.lookingForSpot == spot, self.role == .none, !self.connecting else { return }
+            self.lookingForSpot = nil
+            self.host(name: name, spot: spot)
+        }
+    }
+
+    private func joinSpotIfFound() {
+        guard let spot = lookingForSpot, let room = nearby.first(where: { $0.spot == spot }) else { return }
+        lookingForSpot = nil
+        join(room)
     }
 
     func join(_ room: NearbyRoom) {
@@ -98,6 +125,7 @@ final class RoomStore: ObservableObject {
     }
 
     func leave() {
+        lookingForSpot = nil
         shutdown()
         role = .none
         state = RoomState()

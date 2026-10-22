@@ -72,7 +72,8 @@ struct LockView: View {
                     shield.release()
                     if let l = store.state.lock,
                        store.state.members.first(where: { $0.id == store.me })?.bails == 0, !store.leftLock {
-                        stats.recordCompletedLock(minutes: Int(l.endsAt.timeIntervalSince(l.startedAt) / 60))
+                        stats.recordCompletedLock(minutes: Int(l.endsAt.timeIntervalSince(l.startedAt) / 60),
+                                                  with: store.state.members.filter { $0.id != store.me }.map(\.name))
                     }
                     store.leftLock = true   // lock finished: drop back to the lobby
                 }
@@ -121,8 +122,15 @@ struct LockView: View {
         }
         // Buzz when a friend peeks so the group feels it.
         .sensoryFeedback(.warning, trigger: store.state.members.map(\.bails))
+        .onChange(of: store.state.members) { _, members in
+            LiveActivityController.update(lockedIn: lockedIn, total: members.count)
+        }
         .onAppear {
             if let end = store.state.lock?.endsAt { shield.engage(until: end) }
+            if let lock = store.state.lock {
+                let host = store.state.members.first.map { "\($0.name)'s huddle" } ?? "Your huddle"
+                LiveActivityController.start(group: host, lock: lock, lockedIn: lockedIn, total: store.state.members.count)
+            }
             UIApplication.shared.isIdleTimerDisabled = true   // keep the screen awake on the table
         }
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
@@ -144,6 +152,8 @@ struct LockView: View {
         }
         .card(tint: Theme.cyan)
     }
+
+    private var lockedIn: Int { store.state.members.filter { $0.bails == 0 }.count }
 
     private func progress(_ remaining: TimeInterval) -> Double {
         guard let l = store.state.lock else { return 0 }

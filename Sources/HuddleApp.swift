@@ -19,6 +19,7 @@ struct HuddleApp: App {
 
 struct RootView: View {
     @EnvironmentObject var store: RoomStore
+    @EnvironmentObject var shield: ShieldController
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -45,6 +46,11 @@ struct RootView: View {
         .animation(.easeInOut, value: store.lockActive)
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { store.reconnectIfNeeded() }
+        }
+        // Whenever this phone is no longer in a running lock (host ended it for everyone, the host
+        // left, or we bailed), lift the Screen Time block and the Live Activity right away.
+        .onChange(of: store.lockActive && !store.leftLock) { _, locked in
+            if !locked { shield.release() }
         }
     }
 }
@@ -105,10 +111,10 @@ struct PrimaryButton: ButtonStyle {
     var secondary: Color = Theme.cyan
     var textColor: Color = Color(red: 0.08, green: 0.07, blue: 0.16)
     func makeBody(configuration: Configuration) -> some View {
-        Body(style: self, configuration: configuration)
+        PrimaryButtonBody(style: self, configuration: configuration)
     }
 
-    private struct Body: View {
+    private struct PrimaryButtonBody: View {
         let style: PrimaryButton
         let configuration: ButtonStyleConfiguration
         @Environment(\.isEnabled) private var enabled
